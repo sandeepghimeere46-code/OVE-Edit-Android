@@ -15,10 +15,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val settingsManager = SettingsManager(application)
     private val downloadManager = ModelDownloadManager(application)
 
-    private val _isDarkMode = MutableStateFlow(settingsManager.isDarkMode())
+    private val _isDarkMode = MutableStateFlow(settingsManager.isDarkMode)
     val isDarkMode: StateFlow<Boolean> = _isDarkMode
 
-    private val _highContrast = MutableStateFlow(settingsManager.isHighContrast())
+    private val _highContrast = MutableStateFlow(settingsManager.highContrast)
     val highContrast: StateFlow<Boolean> = _highContrast
 
     private val _modelStates = MutableStateFlow<List<ModelState>>(emptyList())
@@ -29,12 +29,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun toggleDarkMode(enabled: Boolean) {
-        settingsManager.setDarkMode(enabled)
+        settingsManager.isDarkMode = enabled
         _isDarkMode.value = enabled
     }
 
     fun toggleHighContrast(enabled: Boolean) {
-        settingsManager.setHighContrast(enabled)
+        settingsManager.highContrast = enabled
         _highContrast.value = enabled
     }
 
@@ -58,7 +58,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 if (progress >= 1f || progress < 0f) {
                     refreshModelStates()
                 } else {
-                    // Update progress in state
                     val currentStates = _modelStates.value.toMutableList()
                     val index = currentStates.indexOfFirst { it.fileName == fileName }
                     if (index != -1) {
