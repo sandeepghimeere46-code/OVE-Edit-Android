@@ -1,0 +1,6 @@
+*.apk
+*.apk
+*.apk
+build/
+.gradle/
+node_modules/
