@@ -46,7 +46,6 @@ fun ModelDownloadScreen(onDownloadComplete: () -> Unit) {
     val downloadManager = remember { ModelDownloadManager(context) }
     var progress by remember { mutableStateOf(0f) }
     
-    // Animate the progress bar smoothly
     val animatedProgress by animateFloatAsState(
         targetValue = progress, 
         animationSpec = tween(durationMillis = 500, easing = LinearOutSlowInEasing)
@@ -56,7 +55,7 @@ fun ModelDownloadScreen(onDownloadComplete: () -> Unit) {
         downloadManager.downloadAllModels().collect { currentProgress ->
             progress = currentProgress
             if (currentProgress >= 1f) {
-                kotlinx.coroutines.delay(500) // Small pause before navigating
+                kotlinx.coroutines.delay(500)
                 onDownloadComplete()
             }
         }
@@ -73,7 +72,7 @@ fun ModelDownloadScreen(onDownloadComplete: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
         
         LinearProgressIndicator(
-            progress = animatedProgress, 
+            progress = animatedProgress.coerceIn(0f, 1f), 
             modifier = Modifier.fillMaxWidth().height(8.dp).semantics { contentDescription = "Download progress ${(animatedProgress * 100).toInt()} percent" },
             strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
         )
@@ -126,6 +125,7 @@ fun SettingsScreen(
 ) {
     val isDarkMode by viewModel.isDarkMode.collectAsState()
     val highContrast by viewModel.highContrast.collectAsState()
+    val modelStates by viewModel.modelStates.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Button(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Navigate back" }) { Text("Back") }
@@ -133,30 +133,49 @@ fun SettingsScreen(
         Text("Settings", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(24.dp))
         
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Dark Mode")
-            Switch(
-                checked = isDarkMode,
-                onCheckedChange = { viewModel.toggleDarkMode(it) },
-                modifier = Modifier.semantics { contentDescription = "Toggle Dark Mode" }
-            )
+            Switch(checked = isDarkMode, onCheckedChange = { viewModel.toggleDarkMode(it) })
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("High Contrast Mode")
-            Switch(
-                checked = highContrast,
-                onCheckedChange = { viewModel.toggleHighContrast(it) },
-                modifier = Modifier.semantics { contentDescription = "Toggle High Contrast Mode" }
-            )
+            Switch(checked = highContrast, onCheckedChange = { viewModel.toggleHighContrast(it) })
+        }
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        Text("Model Manager", style = MaterialTheme.typography.titleLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Manage local offline AI models.", style = MaterialTheme.typography.bodySmall)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            items(modelStates) { model ->
+                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(model.fileName, style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            if (model.isDownloaded) {
+                                Text("Status: Downloaded", color = MaterialTheme.colorScheme.primary)
+                                Button(onClick = { viewModel.deleteModel(model.fileName) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                                    Text("Delete")
+                                }
+                            } else {
+                                if (model.downloadProgress > 0f) {
+                                    LinearProgressIndicator(progress = model.downloadProgress, modifier = Modifier.weight(1f).padding(end = 8.dp))
+                                    Text("${(model.downloadProgress * 100).toInt()}%")
+                                } else {
+                                    Text("Status: Not Downloaded")
+                                    Button(onClick = { viewModel.downloadModel(model.fileName) }) {
+                                        Text("Download")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -180,18 +199,13 @@ fun HistoryScreen(
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(projects) { project ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                            .semantics { contentDescription = "Project ${project.name}, last saved ${dateFormat.format(Date(project.lastSavedAt))}" }
-                    ) {
+                    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(project.name, style = MaterialTheme.typography.titleMedium)
                             Text("Saved: ${dateFormat.format(Date(project.lastSavedAt))}", style = MaterialTheme.typography.bodySmall)
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                TextButton(onClick = { viewModel.deleteProject(project.id) }) {
-                                    Text("Delete")
-                                }
+                                TextButton(onClick = { viewModel.deleteProject(project.id) }) { Text("Delete") }
                             }
                         }
                     }
